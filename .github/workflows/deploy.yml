@@ -1,0 +1,50 @@
+name: Deploy to Server
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - '**'
+      - '!.github/**'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Deploy to server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          script: |
+            set -e  # Exit on error
+            echo "Deploying to: ${{ secrets.DEPLOY_PATH }}"
+            cd ${{ secrets.DEPLOY_PATH }}
+            echo "Current directory: $(pwd)"
+            echo "Pulling latest changes..."
+            git pull origin main || echo "Git pull completed or not needed"
+            echo "Checking for docker-compose.yml..."
+            if [ -f "docker-compose.yml" ]; then
+              echo "Found docker-compose.yml in current directory"
+            elif [ -f "backend/docker-compose.yml" ]; then
+              echo "Found docker-compose.yml in backend subdirectory"
+              cd backend
+            else
+              echo "Error: docker-compose.yml not found!"
+              exit 1
+            fi
+            echo "Stopping containers..."
+            docker-compose down || true
+            echo "Building and starting containers..."
+            docker-compose up -d --build
+            echo "Deployment completed successfully!"
+            echo "Container status:"
+            docker-compose ps
+            echo "Recent logs:"
+            docker-compose logs --tail=20
+
