@@ -21,30 +21,75 @@ jobs:
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT || 22 }}
+          script_stop: true
           script: |
-            set -e  # Exit on error
+            echo "=== Starting Deployment ==="
             echo "Deploying to: ${{ secrets.DEPLOY_PATH }}"
-            cd ${{ secrets.DEPLOY_PATH }}
-            echo "Current directory: $(pwd)"
-            echo "Pulling latest changes..."
-            git pull origin main || echo "Git pull completed or not needed"
-            echo "Checking for docker-compose.yml..."
-            if [ -f "docker-compose.yml" ]; then
-              echo "Found docker-compose.yml in current directory"
-            elif [ -f "backend/docker-compose.yml" ]; then
-              echo "Found docker-compose.yml in backend subdirectory"
-              cd backend
-            else
-              echo "Error: docker-compose.yml not found!"
+            
+            # Check if deploy path exists
+            if [ ! -d "${{ secrets.DEPLOY_PATH }}" ]; then
+              echo "ERROR: Deploy path does not exist: ${{ secrets.DEPLOY_PATH }}"
               exit 1
             fi
+            
+            cd ${{ secrets.DEPLOY_PATH }}
+            echo "Current directory: $(pwd)"
+            echo "Directory contents:"
+            ls -la
+            
+            # Check if it's a git repository
+            if [ ! -d ".git" ]; then
+              echo "WARNING: Not a git repository. Initializing..."
+              git init || true
+              git remote add origin https://github.com/shashiv367/backend.git || git remote set-url origin https://github.com/shashiv367/backend.git
+            fi
+            
+            echo "Pulling latest changes..."
+            git pull origin main || echo "Git pull completed or not needed"
+            
+            echo "Checking for docker-compose.yml..."
+            if [ -f "docker-compose.yml" ]; then
+              echo "✓ Found docker-compose.yml in current directory"
+              COMPOSE_DIR="."
+            elif [ -f "backend/docker-compose.yml" ]; then
+              echo "✓ Found docker-compose.yml in backend subdirectory"
+              COMPOSE_DIR="backend"
+            else
+              echo "ERROR: docker-compose.yml not found!"
+              echo "Searched in: $(pwd) and $(pwd)/backend"
+              find . -name "docker-compose.yml" 2>/dev/null || echo "No docker-compose.yml found anywhere"
+              exit 1
+            fi
+            
+            cd $COMPOSE_DIR
+            echo "Working directory: $(pwd)"
+            
+            # Check Docker
+            echo "Checking Docker..."
+            docker --version || { echo "ERROR: Docker not installed!"; exit 1; }
+            
+            # Try docker-compose first, fallback to docker compose
+            if command -v docker-compose &> /dev/null; then
+              COMPOSE_CMD="docker-compose"
+            elif docker compose version &> /dev/null; then
+              COMPOSE_CMD="docker compose"
+            else
+              echo "ERROR: docker-compose not found!"
+              exit 1
+            fi
+            
+            echo "Using: $COMPOSE_CMD"
+            
             echo "Stopping containers..."
-            docker-compose down || true
+            $COMPOSE_CMD down || true
+            
             echo "Building and starting containers..."
-            docker-compose up -d --build
-            echo "Deployment completed successfully!"
+            $COMPOSE_CMD up -d --build
+            
+            echo "=== Deployment completed successfully! ==="
             echo "Container status:"
-            docker-compose ps
+            $COMPOSE_CMD ps || docker ps
+            
             echo "Recent logs:"
-            docker-compose logs --tail=20
+            $COMPOSE_CMD logs --tail=20 || echo "Could not fetch logs"
 

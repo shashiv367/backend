@@ -196,3 +196,5 @@ If deployment fails, check:
 - Server logs: `docker-compose logs`
 - SSH connection: Test manually first
 
+
+

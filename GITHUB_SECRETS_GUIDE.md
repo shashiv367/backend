@@ -152,3 +152,5 @@ ssh grahmindubuntu@192.168.1.80 "docker --version && docker-compose --version"
 - Make sure `/home/grahmindubuntu/backend/app` is a git repository
 - Or initialize it: `cd /home/grahmindubuntu/backend/app && git init && git remote add origin https://github.com/shashiv367/backend.git`
 
+
+

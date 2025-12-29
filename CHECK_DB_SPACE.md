@@ -231,3 +231,5 @@ docker system prune -a --volumes
 3. Compact collections (requires downtime)
 4. Rebuild indexes if needed
 
+
+

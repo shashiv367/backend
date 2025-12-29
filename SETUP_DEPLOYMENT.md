@@ -111,3 +111,5 @@ For example:
 - If your structure is: `/root/server/backend/` → DEPLOY_PATH = `/root/server`
 - If your structure is: `/home/user/myapp/backend/` → DEPLOY_PATH = `/home/user/myapp`
 
+
+
